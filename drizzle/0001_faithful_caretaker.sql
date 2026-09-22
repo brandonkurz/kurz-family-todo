@@ -1,0 +1,1 @@
+CREATE INDEX `subtasks_task_id_idx` ON `subtasks` (`task_id`);
