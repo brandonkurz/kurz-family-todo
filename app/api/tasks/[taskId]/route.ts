@@ -1,11 +1,16 @@
 import { env } from "cloudflare:workers";
 import { ensureSchema, getTask, normalizeAssignee } from "../store";
+import { requirePassword } from "../../../password-auth";
 
 type RouteContext = {
   params: Promise<{ taskId: string }>;
 };
 
 export async function PATCH(request: Request, context: RouteContext) {
+  if (!(await requirePassword(request))) {
+    return Response.json({ error: "Password required." }, { status: 401 });
+  }
+
   await ensureSchema();
 
   const { taskId } = await context.params;
@@ -44,7 +49,11 @@ export async function PATCH(request: Request, context: RouteContext) {
   return Response.json({ task: await getTask(taskId) });
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
+  if (!(await requirePassword(request))) {
+    return Response.json({ error: "Password required." }, { status: 401 });
+  }
+
   await ensureSchema();
 
   const { taskId } = await context.params;

@@ -1,11 +1,16 @@
 import { env } from "cloudflare:workers";
 import { createId, ensureSchema, getSubtask, normalizeAssignee } from "../../store";
+import { requirePassword } from "../../../../password-auth";
 
 type RouteContext = {
   params: Promise<{ taskId: string }>;
 };
 
 export async function POST(request: Request, context: RouteContext) {
+  if (!(await requirePassword(request))) {
+    return Response.json({ error: "Password required." }, { status: 401 });
+  }
+
   await ensureSchema();
 
   const { taskId } = await context.params;

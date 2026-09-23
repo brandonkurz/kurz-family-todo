@@ -1,11 +1,16 @@
 import { env } from "cloudflare:workers";
 import { ensureSchema, getSubtask, normalizeAssignee } from "../../tasks/store";
+import { requirePassword } from "../../../password-auth";
 
 type RouteContext = {
   params: Promise<{ subtaskId: string }>;
 };
 
 export async function PATCH(request: Request, context: RouteContext) {
+  if (!(await requirePassword(request))) {
+    return Response.json({ error: "Password required." }, { status: 401 });
+  }
+
   await ensureSchema();
 
   const { subtaskId } = await context.params;
@@ -40,7 +45,11 @@ export async function PATCH(request: Request, context: RouteContext) {
   return Response.json({ subtask: await getSubtask(subtaskId) });
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
+  if (!(await requirePassword(request))) {
+    return Response.json({ error: "Password required." }, { status: 401 });
+  }
+
   await ensureSchema();
 
   const { subtaskId } = await context.params;

@@ -6,8 +6,13 @@ import {
   seedIfNeeded,
 } from "./store";
 import { env } from "cloudflare:workers";
+import { requirePassword } from "../../password-auth";
 
-export async function GET() {
+export async function GET(request: Request) {
+  if (!(await requirePassword(request))) {
+    return Response.json({ error: "Password required." }, { status: 401 });
+  }
+
   await ensureSchema();
   await seedIfNeeded();
 
@@ -15,6 +20,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!(await requirePassword(request))) {
+    return Response.json({ error: "Password required." }, { status: 401 });
+  }
+
   await ensureSchema();
 
   const payload = (await request.json()) as {
