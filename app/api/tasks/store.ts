@@ -9,6 +9,8 @@ export type TaskRecord = {
   assignee: Assignee;
   dueDate: string;
   completed: boolean;
+  createdAt: string;
+  updatedAt: string;
   subtasks: SubtaskRecord[];
 };
 
@@ -28,6 +30,7 @@ type RawTask = {
   due_date: string;
   completed: number;
   created_at: string;
+  updated_at: string;
 };
 
 type RawSubtask = {
@@ -181,6 +184,8 @@ export async function listTasks(): Promise<TaskRecord[]> {
     assignee: row.assignee,
     dueDate: row.due_date,
     completed: Boolean(row.completed),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
     subtasks: subtasksByTask.get(row.id) ?? [],
   }));
 }

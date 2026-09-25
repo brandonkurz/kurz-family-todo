@@ -177,7 +177,7 @@ h3 {
 
 .quick-stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(128px, 1fr));
+  grid-template-columns: repeat(3, minmax(112px, 1fr));
   gap: 0;
 }
 
@@ -314,6 +314,13 @@ select:focus {
   margin-bottom: 18px;
 }
 
+.toolbar-controls {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.view-tabs,
 .filter-tabs {
   display: flex;
   gap: 4px;
@@ -323,6 +330,12 @@ select:focus {
   background: #e9eeec;
 }
 
+.view-tabs {
+  width: max-content;
+  background: #f6f8f7;
+}
+
+.view-tabs button,
 .filter-tabs button {
   min-height: 38px;
   border: 0;
@@ -334,10 +347,12 @@ select:focus {
   font-weight: 760;
 }
 
+.view-tabs button:hover,
 .filter-tabs button:hover {
   color: var(--forest);
 }
 
+.view-tabs .active,
 .filter-tabs .active {
   background: var(--paper);
   color: var(--forest);
@@ -466,6 +481,11 @@ select:focus {
   color: #53615d;
 }
 
+.history-badge {
+  background: var(--teal-soft);
+  color: var(--teal);
+}
+
 .owner-brandon {
   background: var(--blue-soft);
   color: var(--blue);
@@ -507,6 +527,24 @@ select:focus {
   color: var(--muted);
   font-size: 0.76rem;
   font-weight: 700;
+}
+
+.restore-action {
+  width: max-content;
+  min-height: 34px;
+  margin-top: 13px;
+  border: 1px solid rgba(30, 118, 108, 0.3);
+  border-radius: 7px;
+  background: var(--teal-soft);
+  color: var(--teal);
+  padding: 0 12px;
+  font-size: 0.86rem;
+  font-weight: 820;
+}
+
+.restore-action:hover {
+  border-color: var(--teal);
+  background: #d5eae5;
 }
 
 .icon-action,
@@ -678,11 +716,21 @@ select:focus {
 
   .quick-stats {
     width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .quick-stats div:first-child {
     border-left: 0;
     padding-left: 0;
+  }
+
+  .quick-stats div {
+    min-height: 60px;
+    padding: 6px 10px;
+  }
+
+  .quick-stats strong {
+    font-size: 1.45rem;
   }
 
   .planner-grid {
@@ -704,11 +752,25 @@ select:focus {
     flex-direction: column;
   }
 
+  .toolbar-controls {
+    justify-items: stretch;
+  }
+
+  .view-tabs,
   .filter-tabs {
     display: grid;
+    width: 100%;
+  }
+
+  .view-tabs {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .filter-tabs {
     grid-template-columns: repeat(3, 1fr);
   }
 
+  .view-tabs button,
   .filter-tabs button {
     padding: 0 5px;
   }
@@ -734,12 +796,7 @@ select:focus {
   }
 
   .subtask-row {
-    grid-template-columns: 27px minmax(0, 1fr) auto;
-  }
-
-  .subtask-delete {
-    grid-column: 2;
-    justify-self: start;
+    grid-template-columns: 27px minmax(0, 1fr) auto 30px;
   }
 
   .subtask-form {

@@ -19,6 +19,8 @@ type Task = {
   assignee: Assignee;
   dueDate: string;
   completed: boolean;
+  createdAt: string;
+  updatedAt: string;
   subtasks: Subtask[];
 };
 
@@ -28,6 +30,8 @@ type TaskDraft = {
   assignee: Assignee;
   dueDate: string;
 };
+
+type ViewMode = "active" | "history";
 
 const people: Assignee[] = ["Both", "Brandon", "Sarah"];
 const categories = ["Home", "Kids", "Errands", "Bills", "Planning"];
@@ -67,6 +71,15 @@ function dueDateLabel(value: string) {
   }).format(new Date(`${value}T12:00:00`));
 }
 
+function activityDateLabel(value: string) {
+  if (!value) return "";
+
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value));
+}
+
 function ownerClass(assignee: Assignee) {
   return `owner-badge owner-${assignee.toLowerCase()}`;
 }
@@ -91,6 +104,7 @@ export function TodoApp() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [draft, setDraft] = useState<TaskDraft>(initialDraft);
   const [filter, setFilter] = useState<Assignee>("Both");
+  const [viewMode, setViewMode] = useState<ViewMode>("active");
   const [subtaskDrafts, setSubtaskDrafts] = useState<
     Record<string, { title: string; assignee: Assignee }>
   >({});
@@ -105,20 +119,38 @@ export function TodoApp() {
       .finally(() => setIsLoading(false));
   }, []);
 
+  const activeTasks = useMemo(
+    () => tasks.filter((task) => !task.completed),
+    [tasks]
+  );
+  const completedTasks = useMemo(
+    () =>
+      tasks
+        .filter((task) => task.completed)
+        .sort(
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        ),
+    [tasks]
+  );
+
   const visibleTasks = useMemo(() => {
+    const currentTasks = viewMode === "active" ? activeTasks : completedTasks;
+
     if (filter === "Both") {
-      return tasks;
+      return currentTasks;
     }
 
-    return tasks.filter(
+    return currentTasks.filter(
       (task) =>
         task.assignee === filter ||
         task.assignee === "Both" ||
         task.subtasks.some((subtask) => subtask.assignee === filter)
     );
-  }, [filter, tasks]);
+  }, [activeTasks, completedTasks, filter, viewMode]);
 
-  const openTasks = tasks.filter((task) => !task.completed).length;
+  const openTasks = activeTasks.length;
+  const finishedTasks = completedTasks.length;
   const totalSubtasks = tasks.reduce((total, task) => total + task.subtasks.length, 0);
   const doneSubtasks = tasks.reduce(
     (total, task) =>
@@ -285,6 +317,10 @@ export function TodoApp() {
             <span>open tasks</span>
           </div>
           <div>
+            <strong>{finishedTasks}</strong>
+            <span>finished tasks</span>
+          </div>
+          <div>
             <strong>{doneSubtasks}</strong>
             <span>of {totalSubtasks || 0} steps done</span>
           </div>
@@ -370,20 +406,40 @@ export function TodoApp() {
           <div className="board-toolbar">
             <div>
               <p className="section-kicker">Shared board</p>
-              <h2>Today and upcoming</h2>
+              <h2>{viewMode === "active" ? "Today and upcoming" : "Finished tasks"}</h2>
             </div>
-            <div className="filter-tabs" aria-label="Filter by owner">
-              {people.map((person) => (
+            <div className="toolbar-controls">
+              <div className="view-tabs" aria-label="Choose task view">
                 <button
-                  aria-pressed={filter === person}
-                  className={filter === person ? "active" : ""}
-                  key={person}
-                  onClick={() => setFilter(person)}
+                  aria-pressed={viewMode === "active"}
+                  className={viewMode === "active" ? "active" : ""}
+                  onClick={() => setViewMode("active")}
                   type="button"
                 >
-                  {person}
+                  Active
                 </button>
-              ))}
+                <button
+                  aria-pressed={viewMode === "history"}
+                  className={viewMode === "history" ? "active" : ""}
+                  onClick={() => setViewMode("history")}
+                  type="button"
+                >
+                  History
+                </button>
+              </div>
+              <div className="filter-tabs" aria-label="Filter by owner">
+                {people.map((person) => (
+                  <button
+                    aria-pressed={filter === person}
+                    className={filter === person ? "active" : ""}
+                    key={person}
+                    onClick={() => setFilter(person)}
+                    type="button"
+                  >
+                    {person}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -391,11 +447,16 @@ export function TodoApp() {
           {isLoading ? <p className="empty-state">Loading the family list...</p> : null}
 
           {!isLoading && visibleTasks.length === 0 ? (
-            <p className="empty-state">Nothing here yet. Add the first task.</p>
+            <p className="empty-state">
+              {viewMode === "active"
+                ? "Nothing open right now. Add a task or check history."
+                : "No finished tasks yet. Completed tasks will show up here."}
+            </p>
           ) : null}
 
           <div className="task-list">
             {visibleTasks.map((task) => {
+              const isHistory = viewMode === "history";
               const subtaskDraft = subtaskDrafts[task.id] ?? {
                 title: "",
                 assignee: task.assignee === "Both" ? "Brandon" : task.assignee,
@@ -413,12 +474,13 @@ export function TodoApp() {
                   <div className="task-main">
                     <button
                       aria-label={
-                        task.completed
-                          ? `Mark ${task.title} incomplete`
+                        isHistory
+                          ? `Restore ${task.title}`
                           : `Mark ${task.title} complete`
                       }
                       className={task.completed ? "check-button checked" : "check-button"}
                       onClick={() => updateTask(task.id, { completed: !task.completed })}
+                      title={isHistory ? "Restore task" : "Finish task"}
                       type="button"
                     >
                       {task.completed ? "✓" : ""}
@@ -430,6 +492,11 @@ export function TodoApp() {
                         <span className={ownerClass(task.assignee)}>{task.assignee}</span>
                         {task.dueDate ? (
                           <span className="due-badge">Due {dueDateLabel(task.dueDate)}</span>
+                        ) : null}
+                        {isHistory ? (
+                          <span className="history-badge">
+                            Finished {activityDateLabel(task.updatedAt)}
+                          </span>
                         ) : null}
                       </div>
                       <h3>{task.title}</h3>
@@ -445,6 +512,15 @@ export function TodoApp() {
                               : "Open"}
                         </span>
                       </div>
+                      {isHistory ? (
+                        <button
+                          className="restore-action"
+                          onClick={() => updateTask(task.id, { completed: false })}
+                          type="button"
+                        >
+                          Restore
+                        </button>
+                      ) : null}
                     </div>
 
                     <button
@@ -462,77 +538,92 @@ export function TodoApp() {
                     <div className="subtask-list">
                       {task.subtasks.map((subtask) => (
                         <div className="subtask-row" key={subtask.id}>
-                          <button
-                            aria-label={
-                              subtask.completed
-                                ? `Mark ${subtask.title} incomplete`
-                                : `Mark ${subtask.title} complete`
-                            }
-                            className={subtask.completed ? "mini-check checked" : "mini-check"}
-                            onClick={() =>
-                              updateSubtask(subtask.id, {
-                                completed: !subtask.completed,
-                              })
-                            }
-                            type="button"
-                          >
-                            {subtask.completed ? "✓" : ""}
-                          </button>
+                          {isHistory ? (
+                            <span
+                              aria-hidden="true"
+                              className={subtask.completed ? "mini-check checked" : "mini-check"}
+                            >
+                              {subtask.completed ? "✓" : ""}
+                            </span>
+                          ) : (
+                            <button
+                              aria-label={
+                                subtask.completed
+                                  ? `Mark ${subtask.title} incomplete`
+                                  : `Mark ${subtask.title} complete`
+                              }
+                              className={subtask.completed ? "mini-check checked" : "mini-check"}
+                              onClick={() =>
+                                updateSubtask(subtask.id, {
+                                  completed: !subtask.completed,
+                                })
+                              }
+                              type="button"
+                            >
+                              {subtask.completed ? "✓" : ""}
+                            </button>
+                          )}
                           <span className={subtask.completed ? "done" : ""}>
                             {subtask.title}
                           </span>
                           <strong className={ownerClass(subtask.assignee)}>
                             {subtask.assignee}
                           </strong>
-                          <button
-                            aria-label={`Delete ${subtask.title}`}
-                            className="subtask-delete"
-                            onClick={() => deleteSubtask(subtask.id)}
-                            title="Delete subtask"
-                            type="button"
-                          >
-                            ×
-                          </button>
+                          {isHistory ? (
+                            <span aria-hidden="true" />
+                          ) : (
+                            <button
+                              aria-label={`Delete ${subtask.title}`}
+                              className="subtask-delete"
+                              onClick={() => deleteSubtask(subtask.id)}
+                              title="Delete subtask"
+                              type="button"
+                            >
+                              ×
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
                   ) : null}
 
-                  <form
-                    className="subtask-form"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      void addSubtask(task);
-                    }}
-                  >
-                    <input
-                      aria-label={`New subtask for ${task.title}`}
-                      value={subtaskDraft.title}
-                      onChange={(event) =>
-                        setSubtaskDrafts((current) => ({
-                          ...current,
-                          [task.id]: { ...subtaskDraft, title: event.target.value },
-                        }))
-                      }
-                      placeholder="Add a smaller step"
-                    />
-                    <select
-                      aria-label="Subtask owner"
-                      value={subtaskDraft.assignee}
-                      onChange={(event) =>
-                        setSubtaskDrafts((current) => ({
-                          ...current,
-                          [task.id]: {
-                            ...subtaskDraft,
-                            assignee: event.target.value as Assignee,
-                          },
-                        }))
-                      }
+                  {isHistory ? null : (
+                    <form
+                      className="subtask-form"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void addSubtask(task);
+                      }}
                     >
-                      {people.map((person) => <option key={person}>{person}</option>)}
-                    </select>
-                    <button aria-label="Add subtask" title="Add subtask" type="submit">+</button>
-                  </form>
+                      <input
+                        aria-label={`New subtask for ${task.title}`}
+                        value={subtaskDraft.title}
+                        onChange={(event) =>
+                          setSubtaskDrafts((current) => ({
+                            ...current,
+                            [task.id]: { ...subtaskDraft, title: event.target.value },
+                          }))
+                        }
+                        placeholder="Add a smaller step"
+                      />
+                      <select
+                        aria-label="Subtask owner"
+                        value={subtaskDraft.assignee}
+                        onChange={(event) =>
+                          setSubtaskDrafts((current) => ({
+                            ...current,
+                            [task.id]: {
+                              ...subtaskDraft,
+                              assignee: event.target.value as Assignee,
+                            },
+                          }))
+                        }
+                      >
+                        {people.map((person) => <option key={person}>{person}</option>)}
+                      </select>
+                      <button aria-label="Add subtask" title="Add subtask" type="submit">+</button>
+                    </form>
+                  )}
                 </article>
               );
             })}
